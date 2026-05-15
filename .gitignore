@@ -1,0 +1,30 @@
+# Python environment and caches
+backend/venv/
+backend/__pycache__/
+backend/*.pyc
+backend/*.pyo
+backend/*.pyd
+backend/college_chatbot.db
+backend/data/*.db
+backend/data/*.sqlite
+backend/data/uploads/
+backend/data/faiss_index/
+
+# Environment files and secrets
+backend/.env
+
+# Editor files
+.vscode/
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Node frontend artifacts (frontend has its own .gitignore already)
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/*.local

@@ -1,0 +1,54 @@
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+  
+  html { scroll-behavior: smooth; }
+
+  body {
+    @apply bg-surface text-gray-100 font-sans antialiased;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0,114,245,0.12), transparent),
+      radial-gradient(ellipse 60% 40% at 80% 80%, rgba(0,57,144,0.08), transparent);
+    min-height: 100dvh;
+  }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { @apply bg-surface; }
+  ::-webkit-scrollbar-thumb { @apply bg-surface-border rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-gray-500; }
+}
+
+@layer components {
+  .chat-bubble-user {
+    @apply bg-brand-600 text-white rounded-2xl rounded-br-sm px-4 py-3 max-w-[75%] text-sm leading-relaxed shadow-lg;
+  }
+  .chat-bubble-bot {
+    @apply bg-surface-card border border-surface-border text-gray-100 rounded-2xl rounded-bl-sm px-4 py-3 max-w-[80%] text-sm leading-relaxed shadow-md;
+  }
+  .sidebar-link {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-400 hover:text-white hover:bg-surface-hover transition-all duration-200 cursor-pointer text-sm font-medium;
+  }
+  .sidebar-link.active {
+    @apply bg-brand-600/20 text-brand-300 border border-brand-600/30;
+  }
+  .btn-primary {
+    @apply bg-brand-600 hover:bg-brand-500 text-white font-semibold px-5 py-2.5 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm shadow-lg shadow-brand-600/20;
+  }
+  .btn-ghost {
+    @apply border border-surface-border hover:border-gray-500 text-gray-300 hover:text-white font-medium px-5 py-2.5 rounded-xl transition-all duration-200 text-sm;
+  }
+  .input-field {
+    @apply w-full bg-surface-input border border-surface-border text-gray-100 placeholder-gray-500 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all duration-200;
+  }
+  .card {
+    @apply bg-surface-card border border-surface-border rounded-2xl p-6;
+  }
+  .badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+}
