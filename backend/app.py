@@ -1,83 +1,66 @@
-"""
-app.py — Flask application factory and entry point.
-
-Startup sequence:
-  1. Create Flask app with config.
-  2. Initialize JWT extension.
-  3. Initialize database (create tables + seed admin).
-  4. Register route blueprints.
-  5. Enable CORS for React frontend.
-"""
-
+"""app.py — Flask factory v3 (all blueprints registered)."""
 import os
 from flask import Flask, jsonify
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 from dotenv import load_dotenv
-
 load_dotenv()
 
 from config import Config
 from database.db import init_db, SessionLocal
 from services.auth_service import seed_admin
-
-# ── Route blueprints ───────────────────────────────────────────────────────
-from routes.auth_routes import auth_bp
-from routes.admin_routes import admin_bp
-from routes.chat_routes import chat_bp
+from routes.auth_routes      import auth_bp
+from routes.admin_routes     import admin_bp
+from routes.chat_routes      import chat_bp
+from routes.download_routes  import download_bp
+from routes.analytics_routes import analytics_bp
+from routes.students_routes  import students_bp
+from routes.system_routes    import system_bp
+from routes.notices_routes   import notices_bp
 
 
 def create_app() -> Flask:
     app = Flask(__name__)
-
-    # ── Core config ────────────────────────────────────────────────────────
-    app.config["SECRET_KEY"] = Config.SECRET_KEY
-    app.config["JWT_SECRET_KEY"] = Config.JWT_SECRET_KEY
+    app.config["SECRET_KEY"]         = Config.SECRET_KEY
+    app.config["JWT_SECRET_KEY"]     = Config.JWT_SECRET_KEY
     app.config["MAX_CONTENT_LENGTH"] = Config.MAX_CONTENT_LENGTH
-    app.config["UPLOAD_FOLDER"] = Config.UPLOAD_FOLDER
 
-    # ── Extensions ─────────────────────────────────────────────────────────
     JWTManager(app)
-    CORS(app, resources={r"/*": {"origins": "*"}},
-         supports_credentials=True)
+    CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
-    # ── Database ───────────────────────────────────────────────────────────
     with app.app_context():
         init_db()
-        session = SessionLocal()
+        # Also create new v2 tables
         try:
-            seed_admin(session)
-        finally:
-            session.close()
+            from database.models_v2 import Announcement, StudentSession
+            from database.db import Base, engine
+            Base.metadata.create_all(bind=engine)
+        except Exception as e:
+            print(f"[init] models_v2 skipped: {e}")
+        session = SessionLocal()
+        try:   seed_admin(session)
+        finally: session.close()
 
-    # ── Blueprints ─────────────────────────────────────────────────────────
-    app.register_blueprint(auth_bp)
-    app.register_blueprint(admin_bp)
-    app.register_blueprint(chat_bp)
+    for bp in [auth_bp, admin_bp, chat_bp, download_bp,
+               analytics_bp, students_bp, system_bp, notices_bp]:
+        app.register_blueprint(bp)
 
-    # ── Health check ───────────────────────────────────────────────────────
-    @app.route("/health", methods=["GET"])
+    @app.route("/health")
     def health():
-        return jsonify({"status": "ok", "service": "College Chatbot API"}), 200
+        return jsonify({"status": "ok", "version": "3.0"}), 200
 
-    # ── Global error handlers ──────────────────────────────────────────────
     @app.errorhandler(404)
-    def not_found(e):
-        return jsonify({"error": "Endpoint not found."}), 404
+    def not_found(e): return jsonify({"error": "Not found."}), 404
 
     @app.errorhandler(413)
-    def too_large(e):
-        return jsonify({"error": "File too large. Maximum size is 50 MB."}), 413
+    def too_large(e): return jsonify({"error": "File too large (max 50 MB)."}), 413
 
     @app.errorhandler(500)
-    def server_error(e):
-        return jsonify({"error": "Internal server error."}), 500
+    def server_error(e): return jsonify({"error": "Internal server error."}), 500
 
     return app
 
 
-# ── Entry point ────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     app = create_app()
-    port = int(os.getenv("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=Config.DEBUG)
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5000)), debug=Config.DEBUG)

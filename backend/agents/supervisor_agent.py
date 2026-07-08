@@ -1,68 +1,55 @@
 """
-agents/supervisor_agent.py — Supervisor / Router agent.
+agents/supervisor_agent.py — Supervisor / Router Agent (v2)
 
-Routing logic:
-  1. If query matches a simple FAQ pattern → FAQ Agent (no FAISS call).
-  2. If query is too short / vague → polite clarification.
-  3. Otherwise → Document Agent (RAG pipeline).
-
-This keeps the system modular: add more agents here without touching other modules.
+Routing:
+  0. Empty            → clarification
+  1. Too short        → clarification
+  2. Image attached   → Image Agent   (Vision + RAG)
+  3. FAQ match        → FAQ Agent     (instant)
+  4. Syllabus query   → PDF Download Agent (RAG + PDF)
+  5. Default          → Document Agent (standard RAG)
 """
 
-from agents.faq_agent import faq_answer
-from agents.document_agent import document_agent_run
+from agents.faq_agent          import faq_answer
+from agents.document_agent     import document_agent_run
+from agents.pdf_download_agent import pdf_download_agent_run, is_syllabus_query
+from agents.image_agent        import image_agent_run
+
+_BASE = {
+    "answer": "", "sources": [], "chunks_used": 0,
+    "agent": "supervisor", "has_download": False,
+    "download_url": None, "pdf_filename": None, "pdf_size_kb": None,
+}
 
 
-def _is_too_short(query: str) -> bool:
-    """Flag single-word or empty queries as too vague."""
-    return len(query.strip().split()) < 2
+def route_query(query: str = "", image_b64: str = None, image_path: str = None) -> dict:
+    """Main entry point for all user messages."""
+    query = (query or "").strip()
 
-
-def route_query(query: str) -> dict:
-    """
-    Entry point for every user message.
-
-    Returns a standardized response dict:
-        {
-          "answer": str,
-          "sources": list[str],       # [] for FAQ/clarification
-          "chunks_used": int,         # 0 for FAQ/clarification
-          "agent": str,               # "faq" | "document" | "supervisor"
-        }
-    """
-    query = query.strip()
-
-    # Guard: empty input
     if not query:
-        return {
-            "answer": "Please type your question and I'll do my best to help!",
-            "sources": [],
-            "chunks_used": 0,
-            "agent": "supervisor",
-        }
+        return {**_BASE, "answer":
+            "Please type your question and I will do my best to help!"}
 
-    # Route 1 — FAQ fast path
-    faq_resp = faq_answer(query)
-    if faq_resp:
-        return {
-            "answer": faq_resp,
-            "sources": [],
-            "chunks_used": 0,
-            "agent": "faq",
-        }
+    if len(query.split()) < 2:
+        return {**_BASE, "answer": (
+            "Could you provide more details? For example:\n"
+            "• What is the syllabus for B.Tech Computer Science?\n"
+            "• When does admission close for MBA?\n"
+            "• What is the fee structure for MCA?"
+        )}
 
-    # Route 2 — Too short / vague
-    if _is_too_short(query):
-        return {
-            "answer": (
-                "Could you please provide more details? "
-                "For example: 'What is the fee structure for B.Tech?' "
-                "or 'When does admission close?'"
-            ),
-            "sources": [],
-            "chunks_used": 0,
-            "agent": "supervisor",
-        }
+    # Image attached
+    if image_b64 or image_path:
+        return {**_BASE, **image_agent_run(query, image_b64, image_path)}
 
-    # Route 3 — Document RAG agent (default)
-    return document_agent_run(query)
+    # FAQ fast path
+    faq = faq_answer(query)
+    if faq:
+        return {**_BASE, "answer": faq, "agent": "faq"}
+
+    # Syllabus → PDF download
+    if is_syllabus_query(query):
+        return {**_BASE, **pdf_download_agent_run(query)}
+
+    # Default RAG
+    return {**_BASE, **document_agent_run(query)}
